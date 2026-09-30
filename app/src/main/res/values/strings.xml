@@ -61,4 +61,9 @@
     <string name="custom_source_api_hint">https://example.com/api.php/provide/vod</string>
     <string name="custom_source_detail_hint">留空则使用标准 API 详情模式</string>
     <string name="custom_source_delete">删除该数据源</string>
+
+    <!-- 下载 -->
+    <string name="download_channel_name">下载</string>
+    <string name="download_notification_title">正在下载</string>
+    <string name="download_notification_progress">%1$d 个任务进行中 · %2$d%%</string>
 </resources>
