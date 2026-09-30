@@ -48,6 +48,7 @@ class SettingsFragment : RowsSupportFragment() {
                 else -> when (card.payload) {
                     is ServerConfig -> showServerActions(card.payload)
                     ACTION_ADD -> Router.openServerEdit(requireContext(), null)
+                    ACTION_DOWNLOAD_MANAGE -> openDownloadManage()
                 }
             }
         }
@@ -98,6 +99,14 @@ class SettingsFragment : RowsSupportFragment() {
                 payload = ACTION_ADD,
             )
         )
+        addAdapter.add(
+            TextCard(
+                id = "download_manage",
+                title = getString(R.string.settings_download_manage),
+                subtitle = getString(R.string.download_manage_entry_subtitle),
+                payload = ACTION_DOWNLOAD_MANAGE,
+            )
+        )
         rowsAdapter.add(ListRow(HeaderItem(getString(R.string.settings_title)), addAdapter))
     }
 
@@ -144,7 +153,13 @@ class SettingsFragment : RowsSupportFragment() {
         )
     }
 
+    /** 打开下载任务管理页（与 openCustomSources 同款显式 Intent 导航） */
+    private fun openDownloadManage() {
+        startActivity(Intent(requireContext(), DownloadManageActivity::class.java))
+    }
+
     companion object {
         private val ACTION_ADD = Any()
+        private val ACTION_DOWNLOAD_MANAGE = Any()
     }
 }

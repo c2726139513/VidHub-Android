@@ -77,6 +77,11 @@
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
 
+        <!-- 下载任务管理页（T12 C5）：设置页内跳转，不导出 -->
+        <activity
+            android:name=".ui.settings.DownloadManageActivity"
+            android:exported="false" />
+
         <!-- 下载前台服务（T10 C5）：dataSync 类型，队列空自停；不导出（仅应用内 start） -->
         <service
             android:name=".download.DownloadService"
