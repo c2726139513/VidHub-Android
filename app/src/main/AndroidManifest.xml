@@ -4,6 +4,8 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- API<29 直写公共 Download/VidHub 目录需要此权限；API≥29 走 MediaStore.Downloads 免权限 -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
 
     <!-- TV 设备（leanback）声明：非 TV 设备也允许安装 -->
     <uses-feature
