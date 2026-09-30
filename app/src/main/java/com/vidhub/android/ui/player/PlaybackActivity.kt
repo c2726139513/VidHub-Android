@@ -11,9 +11,12 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.PriorityTaskManager
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
 import com.vidhub.android.R
 import com.vidhub.android.model.VideoItem
@@ -23,6 +26,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 /**
  * 全屏播放页。
@@ -34,6 +38,10 @@ import kotlinx.coroutines.launch
 class PlaybackActivity : FragmentActivity() {
 
     private val viewModel: PlayerViewModel by viewModels()
+
+    @Inject
+    @OptIn(UnstableApi::class)
+    lateinit var cacheFactory: CacheDataSource.Factory
 
     private var player: ExoPlayer? = null
     private lateinit var playerView: PlayerView
@@ -96,8 +104,15 @@ class PlaybackActivity : FragmentActivity() {
             )
             .setTargetBufferBytes(Constants.PLAYER_TARGET_BUFFER_BYTES)
             .build()
+        // 播放读接共享缓存（命中读 Cache，未命中经 T6 upstream 回源）；player 侧 Factory 挂 PTM，读任务按
+        // PRIORITY_PLAYBACK 注册（Builder.setPriorityTaskManager 加载期间 add/remove）。已知良性限制：
+        // PreCacheHelper 的 Factory 无 PTM 注入点，其下载任务不注册——并发写锁期间播放读回退上游直拉（不劣于现状）。
+        val priorityTaskManager = PriorityTaskManager()
+        cacheFactory.setUpstreamPriorityTaskManager(priorityTaskManager)
         val exo = ExoPlayer.Builder(this)
             .setLoadControl(loadControl)
+            .setMediaSourceFactory(DefaultMediaSourceFactory(cacheFactory))
+            .setPriorityTaskManager(priorityTaskManager)
             .build()
         player = exo
         playerView.player = exo
