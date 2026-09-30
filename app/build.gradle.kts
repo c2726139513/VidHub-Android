@@ -8,7 +8,7 @@ plugins {
 
 android {
     namespace = "com.vidhub.android"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.vidhub.android"
@@ -98,9 +98,9 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 
     // ExoPlayer (Media3) — 直连播放 M3U8
-    implementation("androidx.media3:media3-exoplayer:1.3.1")
-    implementation("androidx.media3:media3-exoplayer-hls:1.3.1")
-    implementation("androidx.media3:media3-ui:1.3.1")
+    implementation("androidx.media3:media3-exoplayer:1.8.1")
+    implementation("androidx.media3:media3-exoplayer-hls:1.8.1")
+    implementation("androidx.media3:media3-ui:1.8.1")
 
     // 网络
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
