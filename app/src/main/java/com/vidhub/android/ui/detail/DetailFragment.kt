@@ -2,6 +2,8 @@ package com.vidhub.android.ui.detail
 
 import android.Manifest
 import android.app.AlertDialog
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
@@ -52,6 +54,13 @@ class DetailFragment : DetailsSupportFragment() {
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { _ -> /* 结果不影响下载：入队与服务启动在请求后立即继续 */ }
+
+    // API 23-28 直写 Download/VidHub 的 WRITE 运行时授权（C4；29+ MediaStore 免权限不请求）。
+    // 拒绝不阻塞入队：任务在写入阶段以可见错误失败（DownloadStorage "缺少 WRITE..."），
+    // 用户授权后可在下载管理页重试。
+    private val writePermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { _ -> /* 同上：授权与否由任务状态反馈，此处不阻塞 */ }
 
     private lateinit var rowsAdapter: ArrayObjectAdapter
     private var errorShown = false
@@ -198,6 +207,18 @@ class DetailFragment : DetailsSupportFragment() {
         // 通知权限只门禁通知可见性：先发起请求，入队与服务启动不等结果
         if (!DownloadService.hasNotificationPermission(requireContext())) {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+
+        // WRITE 运行时请求（C4）：仅 API 23-28 需要；与上面的通知请求分属互斥版本区间，
+        // 单次确认最多弹一个系统授权框
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
+            ContextCompat.checkSelfPermission(
+                requireContext(),
+                Manifest.permission.WRITE_EXTERNAL_STORAGE,
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            writePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
         }
 
         // serverId 取详情条目所属服务器；旧条目缺省（空串）按 null 记账，不臆造
