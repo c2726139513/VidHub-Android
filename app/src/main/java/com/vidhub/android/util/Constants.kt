@@ -44,6 +44,9 @@ object Constants {
      *  播放器达到字节上限即停止加载，保证内存占用可预测。 */
     const val PLAYER_TARGET_BUFFER_BYTES = 100 * 1024 * 1024
 
+    // 播放共享缓存上限 512MB（可调）
+    const val PLAYER_CACHE_MAX_BYTES = 512L * 1024 * 1024
+
     // ---- Intent Extra ----
     const val EXTRA_VIDEO_ITEM = "extra_video_item"
     const val EXTRA_EPISODE_INDEX = "extra_episode_index"

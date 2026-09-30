@@ -1,6 +1,12 @@
 package com.vidhub.android.di
 
 import android.content.Context
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.database.StandaloneDatabaseProvider
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.cache.CacheDataSource
+import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
+import androidx.media3.datasource.cache.SimpleCache
 import com.squareup.moshi.Moshi
 import com.vidhub.android.BuildConfig
 import com.vidhub.android.data.local.FavoritesStore
@@ -18,6 +24,7 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
+import java.io.File
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
@@ -78,4 +85,36 @@ object AppModule {
     @Singleton
     fun provideFavoritesStore(@ApplicationContext context: Context, moshi: Moshi): FavoritesStore =
         FavoritesStore(context, moshi)
+
+    @Provides
+    @Singleton
+    @OptIn(UnstableApi::class)
+    fun provideStandaloneDatabaseProvider(
+        @ApplicationContext context: Context,
+    ): StandaloneDatabaseProvider = StandaloneDatabaseProvider(context)
+
+    @Provides
+    @Singleton
+    @OptIn(UnstableApi::class)
+    fun provideSimpleCache(
+        @ApplicationContext context: Context,
+        dbProvider: StandaloneDatabaseProvider,
+    ): SimpleCache =
+        SimpleCache(
+            File(context.cacheDir, "media3cache"),
+            LeastRecentlyUsedCacheEvictor(Constants.PLAYER_CACHE_MAX_BYTES),
+            dbProvider,
+        )
+
+    @Provides
+    @Singleton
+    @OptIn(UnstableApi::class)
+    fun provideCacheDataSourceFactory(
+        @ApplicationContext context: Context,
+        cache: SimpleCache,
+    ): CacheDataSource.Factory =
+        CacheDataSource.Factory()
+            .setCache(cache)
+            // 缓存未命中必须回源（默认 upstream=null 会走 PlaceholderDataSource 抛 IOException）
+            .setUpstreamDataSourceFactory(DefaultDataSource.Factory(context))
 }
