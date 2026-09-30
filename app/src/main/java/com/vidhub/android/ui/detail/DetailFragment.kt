@@ -1,8 +1,11 @@
 package com.vidhub.android.ui.detail
 
+import android.Manifest
+import android.app.AlertDialog
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.content.IntentCompat
 import androidx.fragment.app.viewModels
@@ -22,6 +25,8 @@ import androidx.lifecycle.repeatOnLifecycle
 import coil.imageLoader
 import coil.request.ImageRequest
 import com.vidhub.android.R
+import com.vidhub.android.download.DownloadRepository
+import com.vidhub.android.download.DownloadService
 import com.vidhub.android.model.Episode
 import com.vidhub.android.model.VideoItem
 import com.vidhub.android.navigation.Router
@@ -30,14 +35,23 @@ import com.vidhub.android.ui.browse.TextCardPresenter
 import com.vidhub.android.util.Constants
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 /**
- * 视频详情页：简介 + 播放/收藏操作 + 剧集列表。
+ * 视频详情页：简介 + 播放/收藏/下载操作 + 剧集列表。
  */
 @AndroidEntryPoint
 class DetailFragment : DetailsSupportFragment() {
 
     private val viewModel: DetailViewModel by viewModels()
+
+    @Inject
+    lateinit var downloadRepository: DownloadRepository
+
+    // API33+ 通知权限请求：授权与否都不阻塞下载，仅决定通知可见性（T10 契约）
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { _ -> /* 结果不影响下载：入队与服务启动在请求后立即继续 */ }
 
     private lateinit var rowsAdapter: ArrayObjectAdapter
     private var errorShown = false
@@ -60,6 +74,7 @@ class DetailFragment : DetailsSupportFragment() {
                 is Action -> when (item.id) {
                     ACTION_PLAY -> playFromHistory()
                     ACTION_FAVORITE -> viewModel.toggleFavorite()
+                    ACTION_DOWNLOAD -> showDownloadDialog()
                 }
                 is TextCard -> (item.payload as? Episode)?.let { playAt(it.index) }
             }
@@ -101,6 +116,9 @@ class DetailFragment : DetailsSupportFragment() {
                 getString(if (state.isFavorite) R.string.action_favorite_remove else R.string.action_favorite_add),
             )
         )
+        if (state.episodes.isNotEmpty()) {
+            actions.add(Action(ACTION_DOWNLOAD, getString(R.string.detail_action_download)))
+        }
         overviewRow.actionsAdapter = actions
         rowsAdapter.add(overviewRow)
         loadCover(overviewRow, item.coverUrl)
@@ -154,8 +172,51 @@ class DetailFragment : DetailsSupportFragment() {
         Router.openPlayer(requireContext(), item, state.episodes.map { it.url }, index, 0L)
     }
 
+    /** 下载按钮：剧集多选弹窗（数据源=已加载 episodes，标题与选集行一致） */
+    private fun showDownloadDialog() {
+        val episodes = viewModel.uiState.value.episodes
+        if (episodes.isEmpty()) return
+        val titles = episodes.map { it.name }.toTypedArray()
+        val checked = BooleanArray(episodes.size) // 预选为空
+        AlertDialog.Builder(requireContext())
+            .setTitle(R.string.detail_download_dialog_title)
+            .setMultiChoiceItems(titles, checked) { _, which, isChecked ->
+                checked[which] = isChecked
+            }
+            .setPositiveButton(R.string.detail_action_download) { _, _ ->
+                enqueueSelected(episodes, checked)
+            }
+            .setNegativeButton(R.string.detail_download_cancel, null)
+            .show()
+    }
+
+    /** 确认下载：逐条入队（同 url 重复由仓库静默去重），启动前台服务并提示实际入队数 */
+    private fun enqueueSelected(episodes: List<Episode>, checked: BooleanArray) {
+        val selected = episodes.filterIndexed { index, _ -> checked[index] }
+        if (selected.isEmpty()) return // 全不选：无副作用，不启动服务
+
+        // 通知权限只门禁通知可见性：先发起请求，入队与服务启动不等结果
+        if (!DownloadService.hasNotificationPermission(requireContext())) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+
+        // serverId 取详情条目所属服务器；旧条目缺省（空串）按 null 记账，不臆造
+        val serverId = viewModel.uiState.value.item?.serverId?.takeIf { it.isNotBlank() }
+        var queued = 0
+        selected.forEach { episode ->
+            if (downloadRepository.enqueue(serverId, episode.name, episode.url)) queued++
+        }
+        DownloadService.start(requireContext())
+        Toast.makeText(
+            requireContext(),
+            getString(R.string.detail_download_toast, queued),
+            Toast.LENGTH_SHORT,
+        ).show()
+    }
+
     companion object {
         private const val ACTION_PLAY = 1L
         private const val ACTION_FAVORITE = 2L
+        private const val ACTION_DOWNLOAD = 3L
     }
 }
