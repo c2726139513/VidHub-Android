@@ -83,14 +83,14 @@ class PreCacheManager @Inject constructor(
         val start = startPositionMs.coerceAtLeast(0L)
         val current = helper
         if (current != null && uri == cachedUri) {
-            current.preCache(start, Constants.PLAYER_MAX_BUFFER_MS)
+            current.preCache(start, Constants.PLAYER_MAX_BUFFER_MS.toLong())
             return
         }
         current?.release(false) // 换集：停旧窗口但保留其缓存内容
         val created = ensureFactory().create(mediaItem)
         helper = created
         cachedUri = uri
-        created.preCache(start, Constants.PLAYER_MAX_BUFFER_MS)
+        created.preCache(start, Constants.PLAYER_MAX_BUFFER_MS.toLong())
     }
 
     /**
